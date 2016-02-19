@@ -45,6 +45,7 @@ func pwCheck(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Required { username:'', password: '' }", http.StatusBadRequest)
 		} else if con, err := ldap.Dial("tcp", LDAP_SERVER); err != nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			log.Println("Failed to connect to ldap server:", LDAP_SERVER, "reason:", err)
 		} else {
 			defer con.Close() // don't care if close gets an error
 			if err := con.Bind(req.Username, req.Password); err != nil {
@@ -52,7 +53,9 @@ func pwCheck(w http.ResponseWriter, r *http.Request) {
 				log.Println("Failed attempt:", failedAddr.addrs[r.RemoteAddr], "for:", req.Username, "from:", r.RemoteAddr)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			} else {
+				delete(failedAddr.addrs, r.RemoteAddr) // resets counter on successful login
 				fmt.Fprintln(w, "Authenticated")
+				log.Println("Authenticated:", req.Username, "from:", r.RemoteAddr)
 			}
 		}
 	}
