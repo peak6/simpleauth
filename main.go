@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tonnerre/go-ldap"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -20,9 +21,16 @@ var failedAddr = struct {
 }{addrs: make(map[string]int)}
 
 func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	http.HandleFunc("/authenticate", pwCheck)
-	http.ListenAndServe(":8080", nil) // if balancer terminates ssl
-	// http.ListenAndServeTLS(":8080", certFile, keyFile, handler) if app terminates ssl
+	err := http.ListenAndServe(":"+port, nil) // if balancer terminates ssl
+	// err := http.ListenAndServeTLS(":8080", certFile, keyFile, handler) if app terminates ssl
+	if err != nil {
+		log.Fatalln("Error starting http server:", err)
+	}
 }
 
 type Request struct {
@@ -33,29 +41,36 @@ type Request struct {
 func pwCheck(w http.ResponseWriter, r *http.Request) {
 	failedAddr.Lock() // 1 PW check at a time
 	defer failedAddr.Unlock()
-	if failedAddr.addrs[r.RemoteAddr] > MAX_FAILURE {
+	if remote, _, err := net.SplitHostPort(r.RemoteAddr); err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		log.Println("Failed to parse host and port from:", remote)
+	} else if failedAddr.addrs[remote] > MAX_FAILURE {
 		// block blacklisted address
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		log.Println("Attempt to logic from blacklisted ip:", remote)
 	} else {
 		defer r.Body.Close() // don't care if close gets an error
+
 		var req Request
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil { // bad json
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			log.Println("Failed to parse request body:", err)
 		} else if req.Password == "" || req.Username == "" { // missing fields
 			http.Error(w, "Required { username:'', password: '' }", http.StatusBadRequest)
+			log.Println("Received invalid request from:", remote)
 		} else if con, err := ldap.Dial("tcp", LDAP_SERVER); err != nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			log.Println("Failed to connect to ldap server:", LDAP_SERVER, "reason:", err)
 		} else {
 			defer con.Close() // don't care if close gets an error
 			if err := con.Bind(req.Username, req.Password); err != nil {
-				failedAddr.addrs[r.RemoteAddr]++
-				log.Println("Failed attempt:", failedAddr.addrs[r.RemoteAddr], "for:", req.Username, "from:", r.RemoteAddr)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				failedAddr.addrs[remote]++
+				log.Println("Failed attempt:", failedAddr.addrs[remote], "for:", req.Username, "from:", remote)
 			} else {
-				delete(failedAddr.addrs, r.RemoteAddr) // resets counter on successful login
 				fmt.Fprintln(w, "Authenticated")
-				log.Println("Authenticated:", req.Username, "from:", r.RemoteAddr)
+				delete(failedAddr.addrs, remote) // resets counter on successful login
+				log.Println("Authenticated:", req.Username, "from:", remote)
 			}
 		}
 	}
