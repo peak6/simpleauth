@@ -1,0 +1,17 @@
+{
+	"ImportPath": "github.com/peak6/simpleauth",
+	"GoVersion": "go1.6",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/mmitton/asn1-ber",
+			"Rev": "f59a729dcc3973eee8d06e9ef44bdc6812ab8ce3"
+		},
+		{
+			"ImportPath": "github.com/tonnerre/go-ldap",
+			"Rev": "85c5ed831e662491d55d662d510c8cbe70a15153"
+		}
+	]
+}
