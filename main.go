@@ -25,6 +25,9 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	if LDAP_SERVER == "" {
+		log.Fatalln("Must at least set LDAP_SERVER environment variable")
+	}
 	laddr := ":" + port
 	http.HandleFunc("/authenticate", pwCheck)
 	log.Println("Waiting for requests on:", laddr, "using LDAP server:", LDAP_SERVER)
