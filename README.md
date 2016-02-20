@@ -30,7 +30,7 @@ $ docker build -t simpleauth $GOPATH/src/github.com/peak6/simpleauth/.  # if you
 ```
 $ docker run -it --rm --name sa -p 8080:8888 -e LDAP_SERVER=yourserver:port simpleauth
 ```
--p 8080:8888 tells docker to map simpleauth's default port 8080 to the docker hosts port 8888.
+-p 8080:8888 tells docker to map simpleauth's default port 8080 to the docker host's port 8888.
 
 Change 8888 to whatever you want to avoid port conflicts on the host.
 
