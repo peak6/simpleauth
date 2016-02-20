@@ -25,8 +25,10 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	laddr := ":" + port
 	http.HandleFunc("/authenticate", pwCheck)
-	err := http.ListenAndServe(":"+port, nil) // if balancer terminates ssl
+	log.Println("Waiting for requests on:", laddr, "using LDAP server:", LDAP_SERVER)
+	err := http.ListenAndServe(laddr, nil) // if balancer terminates ssl
 	// err := http.ListenAndServeTLS(":8080", certFile, keyFile, handler) if app terminates ssl
 	if err != nil {
 		log.Fatalln("Error starting http server:", err)
